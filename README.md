@@ -137,6 +137,10 @@ MIT License
 2. 检查系统要求是否满足
 3. 提交Issue描述问题
 
+## 🔄 版本历史
+
+查看 [CHANGELOG.md](CHANGELOG.md) 了解详细的版本更新记录。
+
 ---
 
 ⚡ 由 [Claude Code](https://claude.ai/code) 协助开发
