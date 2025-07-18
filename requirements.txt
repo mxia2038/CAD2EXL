@@ -1,0 +1,10 @@
+# P&ID Pipeline Data Extraction Tool Dependencies
+# DWG file reading library via AutoCAD COM interface
+pyautocad>=0.2.0
+
+# Excel file processing libraries
+pandas>=1.5.0
+openpyxl>=3.0.0
+
+# Other utility libraries
+pathlib2>=2.3.0
