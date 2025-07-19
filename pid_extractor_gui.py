@@ -14,6 +14,8 @@ import logging
 import os
 import sys
 from datetime import datetime
+from pathlib import Path
+from PIL import Image, ImageTk
 
 # 设置日志
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -40,42 +42,46 @@ class PIDExtractorGUI:
         # 主框架
         main_frame = ttk.Frame(self.root, padding="10")
         main_frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        self.main_frame = main_frame  # 保存引用以便logo使用
+        
+        # 添加公司Logo
+        self.setup_logo()
         
         # 标题
         title_label = ttk.Label(main_frame, text="P&ID管道数据提取工具", 
                                font=("Arial", 16, "bold"))
-        title_label.grid(row=0, column=0, columnspan=3, pady=(0, 20))
+        title_label.grid(row=1, column=0, columnspan=3, pady=(0, 20))
         
         # DWG文件选择
-        ttk.Label(main_frame, text="DWG文件:").grid(row=1, column=0, sticky=tk.W, pady=5)
-        ttk.Entry(main_frame, textvariable=self.dwg_file, width=50).grid(row=1, column=1, padx=5, pady=5)
-        ttk.Button(main_frame, text="浏览", command=self.select_dwg_file).grid(row=1, column=2, pady=5)
+        ttk.Label(main_frame, text="DWG文件:").grid(row=2, column=0, sticky=tk.W, pady=5)
+        ttk.Entry(main_frame, textvariable=self.dwg_file, width=50).grid(row=2, column=1, padx=5, pady=5)
+        ttk.Button(main_frame, text="浏览", command=self.select_dwg_file).grid(row=2, column=2, pady=5)
         
         # 介质代码文件选择
-        ttk.Label(main_frame, text="介质代码文件:").grid(row=2, column=0, sticky=tk.W, pady=5)
-        ttk.Entry(main_frame, textvariable=self.code_file, width=50).grid(row=2, column=1, padx=5, pady=5)
-        ttk.Button(main_frame, text="浏览", command=self.select_code_file).grid(row=2, column=2, pady=5)
+        ttk.Label(main_frame, text="介质代码文件:").grid(row=3, column=0, sticky=tk.W, pady=5)
+        ttk.Entry(main_frame, textvariable=self.code_file, width=50).grid(row=3, column=1, padx=5, pady=5)
+        ttk.Button(main_frame, text="浏览", command=self.select_code_file).grid(row=3, column=2, pady=5)
         
         # 输出文件选择
-        ttk.Label(main_frame, text="输出文件:").grid(row=3, column=0, sticky=tk.W, pady=5)
-        ttk.Entry(main_frame, textvariable=self.output_file, width=50).grid(row=3, column=1, padx=5, pady=5)
-        ttk.Button(main_frame, text="浏览", command=self.select_output_file).grid(row=3, column=2, pady=5)
+        ttk.Label(main_frame, text="输出文件:").grid(row=4, column=0, sticky=tk.W, pady=5)
+        ttk.Entry(main_frame, textvariable=self.output_file, width=50).grid(row=4, column=1, padx=5, pady=5)
+        ttk.Button(main_frame, text="浏览", command=self.select_output_file).grid(row=4, column=2, pady=5)
         
         # 提取按钮
         extract_button = ttk.Button(main_frame, text="开始提取", command=self.start_extraction)
-        extract_button.grid(row=4, column=0, columnspan=3, pady=20)
+        extract_button.grid(row=5, column=0, columnspan=3, pady=20)
         
         # 进度条
         self.progress = ttk.Progressbar(main_frame, mode='indeterminate')
-        self.progress.grid(row=5, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=10)
+        self.progress.grid(row=6, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=10)
         
         # 状态标签
         self.status_label = ttk.Label(main_frame, text="请选择DWG文件开始提取")
-        self.status_label.grid(row=6, column=0, columnspan=3, pady=10)
+        self.status_label.grid(row=7, column=0, columnspan=3, pady=10)
         
         # 结果显示区域
         result_frame = ttk.LabelFrame(main_frame, text="提取结果", padding="10")
-        result_frame.grid(row=7, column=0, columnspan=3, sticky=(tk.W, tk.E, tk.N, tk.S), pady=10)
+        result_frame.grid(row=8, column=0, columnspan=3, sticky=(tk.W, tk.E, tk.N, tk.S), pady=10)
         
         # 结果文本框
         self.result_text = tk.Text(result_frame, height=10, width=70)
@@ -89,9 +95,40 @@ class PIDExtractorGUI:
         self.root.columnconfigure(0, weight=1)
         self.root.rowconfigure(0, weight=1)
         main_frame.columnconfigure(1, weight=1)
-        main_frame.rowconfigure(7, weight=1)
+        main_frame.rowconfigure(8, weight=1)
         result_frame.columnconfigure(0, weight=1)
         result_frame.rowconfigure(0, weight=1)
+        
+    def setup_logo(self):
+        """设置公司Logo"""
+        try:
+            # 获取logo路径
+            if getattr(sys, 'frozen', False):
+                # 如果是打包后的exe文件
+                base_path = Path(sys._MEIPASS)
+            else:
+                # 如果是源代码运行
+                base_path = Path(__file__).parent
+            
+            logo_path = base_path / "fig" / "logo.jpg"
+            if logo_path.exists():
+                # 加载和调整logo大小
+                logo_image = Image.open(logo_path)
+                # 获取原始尺寸
+                original_width, original_height = logo_image.size
+                # 计算合适的宽高比，保持原始比例
+                target_height = 60
+                aspect_ratio = original_width / original_height
+                target_width = int(target_height * aspect_ratio)
+                logo_image = logo_image.resize((target_width, target_height), Image.Resampling.LANCZOS)
+                self.logo_photo = ImageTk.PhotoImage(logo_image)
+                
+                # 显示logo (在标题前)
+                logo_label = tk.Label(self.main_frame, image=self.logo_photo)
+                logo_label.grid(row=0, column=0, columnspan=3, pady=10)
+                
+        except Exception as e:
+            print(f"无法加载logo: {e}")
         
     def select_dwg_file(self):
         filename = filedialog.askopenfilename(

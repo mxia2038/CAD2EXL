@@ -6,7 +6,7 @@ a = Analysis(
     ['pid_extractor_gui.py'],
     pathex=[],
     binaries=[],
-    datas=[],
+    datas=[('fig/logo.jpg', 'fig')],
     hiddenimports=[
         'pandas',
         'openpyxl',
@@ -23,6 +23,9 @@ a = Analysis(
         'tkinter.filedialog',
         'tkinter.messagebox',
         'tkinter.ttk',
+        'PIL',
+        'PIL.Image',
+        'PIL.ImageTk',
     ],
     hookspath=[],
     hooksconfig={},
