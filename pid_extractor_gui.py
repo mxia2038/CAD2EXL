@@ -305,7 +305,9 @@ class PIDExtractorGUI:
             
     def find_pipeline_numbers(self, text_entities):
         """查找管道号"""
-        pipeline_pattern = r'(\d{4})-(\d{1,3})-([A-Z]{1,3})-(\d{6}[A-Z]?)-([A-Z0-9]{1,4}[A-Z]?)-([A-Z]{1,3})'
+        # 新的管道号格式: 装置号和介质代码-管道号-管道尺寸-管道等级-保温等级
+        # 示例: 4101BRR-02457-200-03CBMB1-H
+        pipeline_pattern = r'(\d{4}[A-Z]{2,3})-(\d{5})-(\d{2,3})-(\d{2}[A-Z0-9]{3,6})-([A-Z]{1,2})'
         pipeline_numbers = []
         
         for text in text_entities:
@@ -375,16 +377,32 @@ class PIDExtractorGUI:
     def parse_pipeline_number(self, pipeline_number, medium_codes):
         """解析管道号"""
         parts = pipeline_number.split('-')
-        if len(parts) >= 6:
-            medium_code = parts[2]
+        if len(parts) >= 5:
+            # 新格式: 装置号和介质代码-管道号-管道尺寸-管道等级-保温等级
+            unit_and_medium = parts[0]  # 4101BRR
+            pipe_number = parts[1]      # 02457
+            pipe_size = parts[2]        # 200
+            pipe_grade = parts[3]       # 03CBMB1
+            insulation_grade = parts[4] # H
+            
+            # 从装置号和介质代码中提取介质代码（后2-3位字母）
+            unit_number = unit_and_medium[:4]  # 4101
+            medium_code = unit_and_medium[4:]  # BRR
+            
             medium_name = medium_codes.get(medium_code, f"未知介质({medium_code})")
             phase = self.determine_phase(medium_name)
             
+            # 简化的管道号：装置号和介质代码-管道编号
+            simplified_pipeline_number = f"{unit_number}{medium_code}-{pipe_number}"
+            
             return {
-                'pipeline_number': pipeline_number,
-                'nominal_diameter': parts[1],
-                'pipe_grade': parts[4],
-                'insulation_type': parts[5],
+                'pipeline_number': simplified_pipeline_number,
+                'unit_number': unit_number,
+                'pipe_number': pipe_number,
+                'nominal_diameter': pipe_size,
+                'pipe_grade': pipe_grade,
+                'insulation_grade': insulation_grade,
+                'medium_code': medium_code,
                 'medium_name': medium_name,
                 'phase': phase
             }
@@ -400,12 +418,12 @@ class PIDExtractorGUI:
                     data['pipeline_number'],
                     data['nominal_diameter'],
                     data['pipe_grade'],
-                    data['insulation_type'],
+                    data['insulation_grade'],
                     data['medium_name'],
                     data['phase']
                 ])
         
-        columns = ['管道号', '管径', '管道等级', '保温型式', '介质', '相态']
+        columns = ['管道号', '管径', '管道等级', '保温等级', '介质名称', '相态']
         df = pd.DataFrame(df_data, columns=columns)
         
         # 按管道号排序
@@ -417,7 +435,7 @@ class PIDExtractorGUI:
             
             # 设置列宽
             worksheet = writer.sheets['管道数据表']
-            column_widths = {'A': 25, 'B': 10, 'C': 15, 'D': 15, 'E': 15, 'F': 10}
+            column_widths = {'A': 20, 'B': 8, 'C': 15, 'D': 10, 'E': 15, 'F': 8}
             for col, width in column_widths.items():
                 worksheet.column_dimensions[col].width = width
             
