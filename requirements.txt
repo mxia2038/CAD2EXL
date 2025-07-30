@@ -9,5 +9,8 @@ openpyxl>=3.0.0
 # Image processing libraries for logo display
 Pillow>=9.0.0
 
+# Drag and drop functionality
+tkinterdnd2>=0.4.0
+
 # Other utility libraries
 pathlib2>=2.3.0

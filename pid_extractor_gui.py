@@ -13,6 +13,7 @@ import pandas as pd
 import logging
 import os
 import sys
+import json
 from datetime import datetime
 from pathlib import Path
 from PIL import Image, ImageTk
@@ -25,7 +26,7 @@ class PIDExtractorGUI:
     def __init__(self, root):
         self.root = root
         self.root.title("P&ID管道数据提取工具")
-        self.root.geometry("600x500")
+        self.root.geometry("800x700")
         
         # 文件路径变量
         self.dwg_file = tk.StringVar()
@@ -36,7 +37,15 @@ class PIDExtractorGUI:
         self.code_file.set("test/code.xlsx")
         self.output_file.set("pipeline_data.xlsx")
         
+        # 配置文件路径
+        self.config_file = Path.home() / ".pid_extractor_config.json"
+        
+        # 加载最近使用的文件
+        self.load_recent_files()
+        
         self.create_widgets()
+        # 延迟设置拖拽，等待窗口完全初始化
+        self.root.after(100, self.setup_drag_drop)
         
     def create_widgets(self):
         # 主框架
@@ -54,18 +63,63 @@ class PIDExtractorGUI:
         
         # DWG文件选择
         ttk.Label(main_frame, text="DWG文件:").grid(row=2, column=0, sticky=tk.W, pady=5)
-        ttk.Entry(main_frame, textvariable=self.dwg_file, width=50).grid(row=2, column=1, padx=5, pady=5)
-        ttk.Button(main_frame, text="浏览", command=self.select_dwg_file).grid(row=2, column=2, pady=5)
+        dwg_frame = ttk.Frame(main_frame)
+        dwg_frame.grid(row=2, column=1, columnspan=2, sticky=(tk.W, tk.E), padx=5, pady=5)
+        
+        # 创建拖拽区域
+        self.dwg_drop_frame = ttk.Frame(dwg_frame, relief="solid", borderwidth=1)
+        self.dwg_drop_frame.grid(row=0, column=0, sticky=(tk.W, tk.E), padx=(0, 5))
+        
+        self.dwg_entry = ttk.Entry(self.dwg_drop_frame, textvariable=self.dwg_file, width=40)
+        self.dwg_entry.grid(row=0, column=0, sticky=(tk.W, tk.E), padx=2, pady=2)
+        
+        self.dwg_recent = ttk.Combobox(dwg_frame, values=self.recent_files['dwg'], width=15)
+        self.dwg_recent.grid(row=0, column=1, padx=(5,0))
+        self.dwg_recent.bind('<<ComboboxSelected>>', lambda e: self.dwg_file.set(self.dwg_recent.get()))
+        ttk.Button(dwg_frame, text="浏览", command=self.select_dwg_file).grid(row=0, column=2, padx=(5,0))
+        
+        self.dwg_drop_frame.columnconfigure(0, weight=1)
+        dwg_frame.columnconfigure(0, weight=1)
         
         # 介质代码文件选择
         ttk.Label(main_frame, text="介质代码文件:").grid(row=3, column=0, sticky=tk.W, pady=5)
-        ttk.Entry(main_frame, textvariable=self.code_file, width=50).grid(row=3, column=1, padx=5, pady=5)
-        ttk.Button(main_frame, text="浏览", command=self.select_code_file).grid(row=3, column=2, pady=5)
+        code_frame = ttk.Frame(main_frame)
+        code_frame.grid(row=3, column=1, columnspan=2, sticky=(tk.W, tk.E), padx=5, pady=5)
+        
+        # 创建拖拽区域
+        self.code_drop_frame = ttk.Frame(code_frame, relief="solid", borderwidth=1)
+        self.code_drop_frame.grid(row=0, column=0, sticky=(tk.W, tk.E), padx=(0, 5))
+        
+        self.code_entry = ttk.Entry(self.code_drop_frame, textvariable=self.code_file, width=40)
+        self.code_entry.grid(row=0, column=0, sticky=(tk.W, tk.E), padx=2, pady=2)
+        
+        self.code_recent = ttk.Combobox(code_frame, values=self.recent_files['code'], width=15)
+        self.code_recent.grid(row=0, column=1, padx=(5,0))
+        self.code_recent.bind('<<ComboboxSelected>>', lambda e: self.code_file.set(self.code_recent.get()))
+        ttk.Button(code_frame, text="浏览", command=self.select_code_file).grid(row=0, column=2, padx=(5,0))
+        
+        self.code_drop_frame.columnconfigure(0, weight=1)
+        code_frame.columnconfigure(0, weight=1)
         
         # 输出文件选择
         ttk.Label(main_frame, text="输出文件:").grid(row=4, column=0, sticky=tk.W, pady=5)
-        ttk.Entry(main_frame, textvariable=self.output_file, width=50).grid(row=4, column=1, padx=5, pady=5)
-        ttk.Button(main_frame, text="浏览", command=self.select_output_file).grid(row=4, column=2, pady=5)
+        output_frame = ttk.Frame(main_frame)
+        output_frame.grid(row=4, column=1, columnspan=2, sticky=(tk.W, tk.E), padx=5, pady=5)
+        
+        # 创建拖拽区域
+        self.output_drop_frame = ttk.Frame(output_frame, relief="solid", borderwidth=1)
+        self.output_drop_frame.grid(row=0, column=0, sticky=(tk.W, tk.E), padx=(0, 5))
+        
+        self.output_entry = ttk.Entry(self.output_drop_frame, textvariable=self.output_file, width=40)
+        self.output_entry.grid(row=0, column=0, sticky=(tk.W, tk.E), padx=2, pady=2)
+        
+        self.output_recent = ttk.Combobox(output_frame, values=self.recent_files['output'], width=15)
+        self.output_recent.grid(row=0, column=1, padx=(5,0))
+        self.output_recent.bind('<<ComboboxSelected>>', lambda e: self.output_file.set(self.output_recent.get()))
+        ttk.Button(output_frame, text="浏览", command=self.select_output_file).grid(row=0, column=2, padx=(5,0))
+        
+        self.output_drop_frame.columnconfigure(0, weight=1)
+        output_frame.columnconfigure(0, weight=1)
         
         # 提取按钮
         extract_button = ttk.Button(main_frame, text="开始提取", command=self.start_extraction)
@@ -129,31 +183,173 @@ class PIDExtractorGUI:
                 
         except Exception as e:
             print(f"无法加载logo: {e}")
+    
+    def load_recent_files(self):
+        """加载最近使用的文件"""
+        self.recent_files = {
+            'dwg': [],
+            'code': [],
+            'output': []
+        }
+        
+        try:
+            if self.config_file.exists():
+                with open(self.config_file, 'r', encoding='utf-8') as f:
+                    config = json.load(f)
+                    self.recent_files = config.get('recent_files', self.recent_files)
+        except Exception as e:
+            print(f"无法加载配置文件: {e}")
+    
+    def save_recent_files(self):
+        """保存最近使用的文件"""
+        try:
+            config = {'recent_files': self.recent_files}
+            with open(self.config_file, 'w', encoding='utf-8') as f:
+                json.dump(config, f, ensure_ascii=False, indent=2)
+        except Exception as e:
+            print(f"无法保存配置文件: {e}")
+    
+    def add_recent_file(self, file_type, file_path):
+        """添加到最近使用的文件列表"""
+        if file_path and file_path not in self.recent_files[file_type]:
+            self.recent_files[file_type].insert(0, file_path)
+            # 只保留最近5个文件
+            self.recent_files[file_type] = self.recent_files[file_type][:5]
+            self.save_recent_files()
+    
+    def setup_drag_drop(self):
+        """设置拖拽功能"""
+        try:
+            from tkinterdnd2 import DND_FILES, TkinterDnD
+            
+            # 为每个拖拽区域设置独立的处理函数
+            def create_drop_handler(target_var, file_type, valid_extensions):
+                def on_drop(event):
+                    files = event.data.split()
+                    if files:
+                        file_path = files[0].strip('{}')
+                        # 检查文件扩展名
+                        if any(file_path.lower().endswith(ext) for ext in valid_extensions):
+                            target_var.set(file_path)
+                            self.add_recent_file(file_type, file_path)
+                            self.update_recent_comboboxes()
+                            self.show_drop_feedback(event.widget, "success")
+                        else:
+                            self.show_drop_feedback(event.widget, "error")
+                return on_drop
+            
+            def on_drag_enter(event):
+                self.show_drop_feedback(event.widget, "hover")
+            
+            def on_drag_leave(event):
+                self.show_drop_feedback(event.widget, "normal")
+            
+            # 为DWG文件区域设置拖拽
+            self.dwg_drop_frame.drop_target_register(DND_FILES)
+            self.dwg_drop_frame.dnd_bind('<<Drop>>', create_drop_handler(self.dwg_file, 'dwg', ['.dwg']))
+            self.dwg_drop_frame.dnd_bind('<<DragEnter>>', on_drag_enter)
+            self.dwg_drop_frame.dnd_bind('<<DragLeave>>', on_drag_leave)
+            
+            # 为介质代码文件区域设置拖拽
+            self.code_drop_frame.drop_target_register(DND_FILES)
+            self.code_drop_frame.dnd_bind('<<Drop>>', create_drop_handler(self.code_file, 'code', ['.xlsx', '.xls']))
+            self.code_drop_frame.dnd_bind('<<DragEnter>>', on_drag_enter)
+            self.code_drop_frame.dnd_bind('<<DragLeave>>', on_drag_leave)
+            
+            # 为输出文件区域设置拖拽
+            self.output_drop_frame.drop_target_register(DND_FILES)
+            self.output_drop_frame.dnd_bind('<<Drop>>', create_drop_handler(self.output_file, 'output', ['.xlsx', '.xls']))
+            self.output_drop_frame.dnd_bind('<<DragEnter>>', on_drag_enter)
+            self.output_drop_frame.dnd_bind('<<DragLeave>>', on_drag_leave)
+            
+            print("拖拽功能已启用")
+            
+        except ImportError:
+            print("拖拽功能需要安装 tkinterdnd2 库")
+            print("使用命令: pip install tkinterdnd2")
+    
+    def show_drop_feedback(self, widget, state):
+        """显示拖拽反馈"""
+        try:
+            if state == "hover":
+                widget.configure(style="Hover.TFrame")
+            elif state == "success":
+                widget.configure(style="Success.TFrame")
+                # 1秒后恢复正常样式
+                self.root.after(1000, lambda: widget.configure(style="TFrame"))
+            elif state == "error":
+                widget.configure(style="Error.TFrame")
+                # 1秒后恢复正常样式
+                self.root.after(1000, lambda: widget.configure(style="TFrame"))
+            else:  # normal
+                widget.configure(style="TFrame")
+        except:
+            # 如果样式设置失败，使用颜色变化
+            if state == "hover":
+                widget.configure(background="#E6F3FF")
+            elif state == "success":
+                widget.configure(background="#E6FFE6")
+                self.root.after(1000, lambda: widget.configure(background="SystemButtonFace"))
+            elif state == "error":
+                widget.configure(background="#FFE6E6")
+                self.root.after(1000, lambda: widget.configure(background="SystemButtonFace"))
+            else:  # normal
+                widget.configure(background="SystemButtonFace")
         
     def select_dwg_file(self):
+        # 设置初始目录为最近使用的文件目录
+        initialdir = None
+        if self.recent_files['dwg']:
+            initialdir = os.path.dirname(self.recent_files['dwg'][0])
+        
         filename = filedialog.askopenfilename(
             title="选择DWG文件",
-            filetypes=[("DWG files", "*.dwg"), ("All files", "*.*")]
+            filetypes=[("DWG files", "*.dwg"), ("All files", "*.*")],
+            initialdir=initialdir
         )
         if filename:
             self.dwg_file.set(filename)
+            self.add_recent_file('dwg', filename)
+            self.update_recent_comboboxes()
             
     def select_code_file(self):
+        # 设置初始目录为最近使用的文件目录
+        initialdir = None
+        if self.recent_files['code']:
+            initialdir = os.path.dirname(self.recent_files['code'][0])
+        
         filename = filedialog.askopenfilename(
             title="选择介质代码文件",
-            filetypes=[("Excel files", "*.xlsx"), ("All files", "*.*")]
+            filetypes=[("Excel files", "*.xlsx"), ("All files", "*.*")],
+            initialdir=initialdir
         )
         if filename:
             self.code_file.set(filename)
+            self.add_recent_file('code', filename)
+            self.update_recent_comboboxes()
             
     def select_output_file(self):
+        # 设置初始目录为最近使用的文件目录
+        initialdir = None
+        if self.recent_files['output']:
+            initialdir = os.path.dirname(self.recent_files['output'][0])
+        
         filename = filedialog.asksaveasfilename(
             title="选择输出文件",
             defaultextension=".xlsx",
-            filetypes=[("Excel files", "*.xlsx"), ("All files", "*.*")]
+            filetypes=[("Excel files", "*.xlsx"), ("All files", "*.*")],
+            initialdir=initialdir
         )
         if filename:
             self.output_file.set(filename)
+            self.add_recent_file('output', filename)
+            self.update_recent_comboboxes()
+    
+    def update_recent_comboboxes(self):
+        """更新下拉框中的最近文件列表"""
+        self.dwg_recent['values'] = self.recent_files['dwg']
+        self.code_recent['values'] = self.recent_files['code']
+        self.output_recent['values'] = self.recent_files['output']
             
     def start_extraction(self):
         # 验证输入
@@ -453,7 +649,13 @@ class PIDExtractorGUI:
         return df
 
 def main():
-    root = tk.Tk()
+    try:
+        from tkinterdnd2 import TkinterDnD
+        root = TkinterDnD.Tk()
+    except ImportError:
+        root = tk.Tk()
+        print("tkinterdnd2 不可用，拖拽功能将被禁用")
+    
     app = PIDExtractorGUI(root)
     root.mainloop()
 
