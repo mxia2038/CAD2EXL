@@ -6,7 +6,7 @@ a = Analysis(
     ['pid_extractor_gui.py'],
     pathex=[],
     binaries=[],
-    datas=[('fig/logo.jpg', 'fig')],
+    datas=[('fig/logo.jpg', 'fig'), ('test/code.xlsx', 'test'), ('test/test.dwg', 'test')],
     hiddenimports=[
         'pandas',
         'openpyxl',
@@ -38,6 +38,7 @@ a = Analysis(
         'datetime',
         'threading',
         'tkinterdnd2',
+        'unicodedata',
     ],
     hookspath=[],
     hooksconfig={},

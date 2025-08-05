@@ -99,7 +99,7 @@ def find_pipeline_numbers(text_entities):
     """查找管道号"""
     # 自检测试
     test_string = '4101BRR-02457-200-03CBMB1-H'
-    pipeline_pattern = r'(\d{4}[A-Z]{2,3})-(\d{5})-(\d{2,3})-(\d{2}[A-Z0-9]{3,6})-([A-Z]{1,2})'
+    pipeline_pattern = r'(\d{4}[A-Z0-9]{1,4})-([A-Z0-9]{4,6})-(\d{2,3})-(\d{2}[A-Z0-9]{3,6})-([A-Z]{1,2})'
     self_check = bool(re.search(pipeline_pattern, test_string))
     logger.info(f"正则表达式自检结果: {self_check}")
     
@@ -191,9 +191,9 @@ def parse_pipeline_number(pipeline_number, medium_codes):
         pipe_grade = parts[3]       # 03CBMB1
         insulation_grade = parts[4] # H
         
-        # 从装置号和介质代码中提取介质代码（后2-3位字母）
+        # 从装置号和介质代码中提取介质代码（后1-4位字母数字）
         unit_number = unit_and_medium[:4]  # 4101
-        medium_code = unit_and_medium[4:]  # BRR
+        medium_code = unit_and_medium[4:]  # BRR, D, S18, CSM
         
         medium_name = medium_codes.get(medium_code, f"未知介质({medium_code})")
         phase = determine_phase(medium_name)

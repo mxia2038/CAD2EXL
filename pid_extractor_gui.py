@@ -459,32 +459,37 @@ class PIDExtractorGUI:
             text_entities = []
             
             # 遍历实体
-            for i in range(model_space.Count):
+            total_entities = model_space.Count
+            for i in range(total_entities):
                 try:
+                    # 显示进度
+                    if i % 10000 == 0:
+                        self.log_message(f"处理进度: {i}/{total_entities} ({i/total_entities*100:.1f}%)")
+                    
                     entity = model_space.Item(i)
                     entity_type = entity.ObjectName
                     
-                    # 提取文本
-                    text_content = None
-                    if entity_type == "AcDbText":
-                        text_content = entity.TextString
-                    elif entity_type == "AcDbMText":
-                        text_content = entity.TextString
-                    elif entity_type == "AcDbBlockReference":
-                        # 处理块参照中的属性
-                        try:
-                            if hasattr(entity, 'GetAttributes'):
-                                attributes = entity.GetAttributes()
-                                for attr in attributes:
-                                    if hasattr(attr, 'TextString'):
-                                        text_entities.append(attr.TextString)
-                        except:
-                            pass
-                    elif hasattr(entity, 'TextString'):
-                        text_content = entity.TextString
-                    
-                    if text_content:
-                        text_entities.append(text_content)
+                    # 只处理文本相关的实体类型，提高效率
+                    if entity_type in ["AcDbText", "AcDbMText", "AcDbBlockReference"]:
+                        # 提取文本
+                        text_content = None
+                        if entity_type == "AcDbText":
+                            text_content = entity.TextString
+                        elif entity_type == "AcDbMText":
+                            text_content = entity.TextString
+                        elif entity_type == "AcDbBlockReference":
+                            # 处理块参照中的属性
+                            try:
+                                if hasattr(entity, 'GetAttributes'):
+                                    attributes = entity.GetAttributes()
+                                    for attr in attributes:
+                                        if hasattr(attr, 'TextString'):
+                                            text_entities.append(attr.TextString)
+                            except:
+                                pass
+                        
+                        if text_content:
+                            text_entities.append(text_content)
                         
                 except Exception:
                     continue
@@ -499,19 +504,42 @@ class PIDExtractorGUI:
             self.log_message(f"提取文本失败: {e}")
             return []
             
+    def normalize_text(self, s):
+        """文本标准化，清理不可见字符"""
+        import unicodedata
+        s = str(s).strip()
+        s = unicodedata.normalize('NFKC', s)  # Unicode标准化
+        s = s.replace('\x00', '')  # 清理NULL字符
+        s = re.sub(r'[\u2010-\u2015]', '-', s)  # Unicode连字符改为ASCII连字符
+        s = re.sub(r'[\x00-\x1F\x7F-\x9F]', '', s)  # 清理控制字符
+        return s
+
     def find_pipeline_numbers(self, text_entities):
         """查找管道号"""
-        # 新的管道号格式: 装置号和介质代码-管道号-管道尺寸-管道等级-保温等级
-        # 示例: 4101BRR-02457-200-03CBMB1-H
-        pipeline_pattern = r'(\d{4}[A-Z]{2,3})-(\d{5})-(\d{2,3})-(\d{2}[A-Z0-9]{3,6})-([A-Z]{1,2})'
+        # 自检测试
+        test_string = '4101BRR-02457-200-03CBMB1-H'
+        pipeline_pattern = r'(\d{4}[A-Z0-9]{1,4})-([A-Z0-9]{4,6})-(\d{2,3})-(\d{2}[A-Z0-9]{3,6})-([A-Z]{1,2})'
+        self_check = bool(re.search(pipeline_pattern, test_string))
+        self.log_message(f"正则表达式自检结果: {self_check}")
+        
         pipeline_numbers = []
         
+        # 调试：打印前10个文本的详细信息
+        self.log_message("开始分析前10个文本实体...")
+        for idx, text in enumerate(text_entities[:10]):
+            self.log_message(f"文本{idx}: {repr(text)} | 十六进制: {[hex(ord(c)) for c in str(text)[:20]]}")
+        
         for text in text_entities:
-            matches = re.findall(pipeline_pattern, text)
+            # 标准化文本
+            normalized_text = self.normalize_text(text)
+            
+            # 查找管道号
+            matches = re.findall(pipeline_pattern, normalized_text)
             for match in matches:
                 pipeline_number = '-'.join(match)
                 if pipeline_number not in pipeline_numbers:
                     pipeline_numbers.append(pipeline_number)
+                    self.log_message(f"找到管道号: {pipeline_number} (原文本: {repr(text[:50])})")
         
         return pipeline_numbers
         
@@ -581,9 +609,9 @@ class PIDExtractorGUI:
             pipe_grade = parts[3]       # 03CBMB1
             insulation_grade = parts[4] # H
             
-            # 从装置号和介质代码中提取介质代码（后2-3位字母）
+            # 从装置号和介质代码中提取介质代码（后1-4位字母数字）
             unit_number = unit_and_medium[:4]  # 4101
-            medium_code = unit_and_medium[4:]  # BRR
+            medium_code = unit_and_medium[4:]  # BRR, D, S18, CSM
             
             medium_name = medium_codes.get(medium_code, f"未知介质({medium_code})")
             phase = self.determine_phase(medium_name)
