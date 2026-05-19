@@ -38,8 +38,14 @@ env/
 
 # Project output files
 pipeline_data.xlsx
+pipeline_data_*.xlsx
 *.tmp
 *.temp
+
+# User working files in test/ (DWG and Excel provided by users)
+test/*.dwg
+test/*.xlsx
+test/*.log
 
 # IDE
 .vscode/

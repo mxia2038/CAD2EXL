@@ -1,12 +1,10 @@
 # -*- mode: python ; coding: utf-8 -*-
 
-block_cipher = None
-
 a = Analysis(
     ['pid_extractor_gui.py'],
     pathex=[],
     binaries=[],
-    datas=[('fig/logo.jpg', 'fig'), ('test/code.xlsx', 'test'), ('test/test.dwg', 'test')],
+    datas=[('fig/logo.jpg', 'fig')],
     hiddenimports=[
         'pandas',
         'openpyxl',
@@ -44,13 +42,10 @@ a = Analysis(
     hooksconfig={},
     runtime_hooks=[],
     excludes=[],
-    win_no_prefer_redirects=False,
-    win_private_assemblies=False,
-    cipher=block_cipher,
     noarchive=False,
 )
 
-pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
+pyz = PYZ(a.pure)
 
 exe = EXE(
     pyz,
