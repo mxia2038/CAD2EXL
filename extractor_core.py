@@ -19,7 +19,7 @@ PROJECT_FORMAT_EXAMPLES = {
     "巨化项目":  "示例: 4101BRR-02457-200-03CBMB1-H",
     "乌兹项目":  "示例: PA-2001002A-100-C1C-N",
     "天华项目":  "示例: 01PL-216061-125-C22S-H",
-    "金昱元项目": "示例: 01PC03012-100-C12S-H",
+    "金昱元项目": "示例: 01CSL03203-150-C1N-H",
 }
 
 
@@ -40,6 +40,7 @@ def normalize_text(s):
     s = s.replace('\x00', '')
     s = re.sub(r'[‐-―]', '-', s)
     s = re.sub(r'[\x00-\x1F\x7F-\x9F]', '', s)
+    s = re.sub(r'\s+-', '-', s)   # 清理连字符前的空格，如 "50 -C1S" → "50-C1S"
     return s
 
 
@@ -152,24 +153,26 @@ def find_pipeline_numbers(text_entities, project_type, log_fn=None):
         ]
     elif project_type == "天华项目":
         patterns = [
-            r'(\d{2}[A-Z]{2,4})-(\d{5,7})-(\d{2,4})-([A-Z0-9]{2,6})-([A-Z]{1,2})',
-            r'(\d{2}[A-Z]{2,4})-(\d{5,7})-(\d{2,4})$',
+            r'(\d{2}[A-Za-z]{2,4})-(\d{5,7}[A-Z]?)-(\d{2,4})-([A-Z0-9]{2,6})-([A-Z]{1,2})',
+            r'(\d{2}[A-Za-z]{2,4})-(\d{5,7}[A-Z]?)-(\d{2,4})$',
         ]
         test_strings = [
             '01PL-216061-125-C22S-H',
+            '01AcS-216061-125-C22S-H',  # 含小写的介质代码
+            '01PL-216061A-125-C22S-H',  # 管道号带字母后缀
             '02WA-316052-200-D11T-N',
-            '03ST-116043-50-A01R-C',
             '01PL-216061-80',
         ]
     elif project_type == "金昱元项目":
         patterns = [
-            r'(\d{2}[A-Z]{2}\d{5,7})-(\d{2,4})-([A-Z0-9]{2,6})-([A-Z]{1,2})',
-            r'(\d{2}[A-Z]{2}\d{5,7})-(\d{2,4})$',
+            r'(\d{2}[A-Z]{1,4}\d{5,7}[A-Z]?)-(\d{2,4})-([A-Z0-9]{2,6})-([A-Z]{1,2})',
+            r'(\d{2}[A-Z]{1,4}\d{5,7}[A-Z]?)-(\d{2,4})$',
         ]
         test_strings = [
-            '01PC03012-100-C12S-H',
-            '02WA05023-200-D11T-N',
-            '03ST07034-50-A01R-C',
+            '01H04001-50-C1S-N',        # 1字母介质代码
+            '01PC03012-100-C12S-H',     # 2字母介质代码
+            '01CSL03203-150-C1N-H',     # 3字母介质代码
+            '01IA04001A-50-C1S-N',      # 管道号带字母后缀
             '01PC03012-80',
         ]
     else:  # 巨化项目
@@ -223,7 +226,7 @@ def parse_pipeline_number(pipeline_number, medium_codes, project_type):
     parts = pipeline_number.split('-')
 
     if project_type == "金昱元项目":
-        m = re.match(r'(\d{2})([A-Z]{2})(\d{5,7})', parts[0])
+        m = re.match(r'(\d{2})([A-Z]{1,4})(\d{5,7}[A-Z]?)', parts[0])
         if not m:
             return None
         unit_number, medium_code, pipe_number = m.group(1), m.group(2), m.group(3)
@@ -275,7 +278,7 @@ def parse_pipeline_number(pipeline_number, medium_codes, project_type):
             pipe_grade, insulation_grade = "未知等级", "未知"
         else:
             return None
-        m = re.match(r'(\d{2})([A-Z]{2,4})', unit_and_medium)
+        m = re.match(r'(\d{2})([A-Za-z]{2,4})', unit_and_medium)
         unit_number = m.group(1) if m else unit_and_medium[:2]
         medium_code = m.group(2) if m else unit_and_medium[2:]
         medium_name = medium_codes.get(medium_code, f"未知介质({medium_code})")
